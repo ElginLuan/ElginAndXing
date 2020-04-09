@@ -1,0 +1,627 @@
+//請助教下載github版本評分 
+//任務二+任務三
+// 10720101 阮彥? 10720137 陳微心 
+#include<iostream>
+#include<string>
+#include<vector>
+#include<fstream>
+#include<algorithm>
+#include<sstream>
+
+using namespace std;
+ 
+
+
+struct Data{
+	int graduates ; // 畢業生人數 
+    int num ; //序號 
+    string schoolname ; //學校名子 
+    string departname ; //科系名子 
+    string day ; // 日間別 
+    string level ; //等級別 
+    
+    
+};
+
+struct Avl{ //相同畢業生人數 
+	vector<Data> key ;
+	int graduates ;
+	
+} ;
+
+vector<Data> list ;
+vector<Avl> list1 ;
+
+class tree{
+	public :
+		tree * left ;
+		tree * right ;
+	
+		tree * parent ;
+	    Avl element ;
+	   
+	public :
+		tree * root ;
+		tree() : left(NULL),right(NULL), parent(NULL),root(NULL){};
+	    tree(Avl m) : left(NULL),right(NULL), parent(NULL),root(NULL), element(m){};
+			
+		
+	    
+		void insert( Avl m) ;  
+		void checkheight(tree * y) ;
+		void checkrotate( tree * y, int bf ) ;
+		tree * rotatell( tree * y ) ;
+		tree * rotaterr( tree * y ) ;
+		int height( tree * y ) ;
+		void  treeroot( Avl m ) ;
+		int checkbf( tree * y ) ;
+		void inorder( tree * x ) ;
+		void deleteall();
+		//void findmax( tree * x, int k )  ;
+		void findk( tree * x ) ;
+		void  findkm( int k ) ;
+		void inorder2( tree * x ) ;
+};
+
+int tree :: height( tree * y ) { //算樹高 
+	
+	if( y == NULL )
+	    return 0 ;
+	    
+	return max( height( y -> left ), height( y -> right ) ) +1 ;
+}
+
+int tree :: checkbf( tree * y ) { //算平衡係數 
+	int left = height( y -> left ) ;
+	int right = height( y -> right ) ;
+	int bf = left - right ;
+	return bf ;
+} 
+
+void tree :: checkrotate( tree * y, int bf ) { //看要往哪旋轉 
+	tree * pre = NULL ;
+	
+	if( y != root ) {
+		pre = y -> parent ;
+		
+	}
+	
+		
+	
+		
+	if( bf == 2 ) { //左樹比較重 
+		
+		int bf = checkbf( y -> left ) ;
+		if( bf == 1 || bf == 0 ) { //ll旋轉 
+			if( y == root ) {
+				root = rotatell( y ) ;
+			}
+			else {
+				tree * temp = rotatell( y ) ;
+				temp -> parent = pre ;
+				
+				if( pre -> element.graduates > temp -> element.graduates )
+					pre -> left = temp ;
+				else
+					pre -> right = temp ;
+			}	
+			
+		}
+		else { //lr旋轉 
+			tree * temp1 = rotaterr( y -> left ) ;
+			y -> left = temp1 ;
+			temp1 -> parent = y ;
+			if( y == root )
+				root = rotaterr(y) ;
+			else {
+				
+				tree * temp = rotatell( y ) ;
+				temp -> parent = pre ;
+				if( pre -> element.graduates > temp -> element.graduates )
+					pre -> left = temp ;
+				else
+					pre -> right = temp ;
+			}
+			
+		}
+		
+	}
+	else if( bf == -2 ) { //右子樹比較重 
+		
+		int bf = checkbf( y -> right ) ;
+		if( bf == -1 || bf == 0 ) { //rr旋轉 
+			if( y == root )
+				root = rotaterr(y) ;
+			else {
+				tree * temp = rotaterr( y ) ;
+				
+				temp -> parent = pre ;
+				if( pre -> element.graduates > temp -> element.graduates )
+					pre -> left = temp ;
+				else
+					pre -> right = temp ;
+				
+			}
+		
+		}
+		else{ //rl旋轉 
+	 		tree * temp1 = rotatell( y -> right ) ;
+	 		temp1 -> parent = y ;
+			y -> right = temp1 ;
+			if( y == root )
+				root = rotaterr(y) ;
+			else {
+				tree * temp = rotaterr( y ) ;
+				temp -> parent = pre ;
+				if( pre -> element.graduates > temp -> element.graduates )
+					pre -> left = temp ;
+				else
+					pre -> right = temp ;
+			}
+			
+		}
+	}
+	
+
+}
+
+tree * tree :: rotatell( tree * y ) { //ll旋轉 
+	tree * x = y -> left ;
+	if( x -> right == NULL ) {
+		y -> left = x -> right ;
+	}
+	else {
+		y -> left = x -> right ;
+	
+		x -> right -> parent = y ;
+	}
+
+	x -> right = y ;
+	y -> parent = x ;
+
+	
+	return x ;
+
+}
+
+tree * tree :: rotaterr( tree * y ) { //rr旋轉 
+	tree * x = y -> right ;
+	if( x -> left == NULL )
+		y -> right = x -> left ;
+	else {
+		y -> right = x -> left ;
+		x -> left -> parent = y ;
+	}
+
+	
+	x -> left = y ;
+	y -> parent = x ;
+	
+	return x ;
+}
+
+void tree::treeroot( Avl m) { //設定根 
+	root = new tree(m) ;
+ 
+	  // 根 
+}
+
+void tree :: insert( Avl m ) { //插入資料 
+	tree * y = NULL ;
+	tree * x = NULL ;
+
+	tree * newelement = new tree( m )  ; 
+	x = root ;
+	 
+	while( x != NULL ) {
+		y = x ;
+	
+		 
+		if( newelement -> element.graduates < x -> element.graduates  )
+			x = x -> left ;
+		else
+			x = x -> right ;
+	}
+	
+
+		
+	
+		newelement -> parent = y ;
+		
+		if(  newelement -> element.graduates < y -> element.graduates  ) {
+			
+	    	y -> left = newelement ;
+	   
+			checkheight( y ) ;
+    	}
+		else{ 
+	   	 	y -> right = newelement ;
+	   	 	checkheight( y ) ; 
+		} 
+	
+
+}
+
+void tree :: checkheight( tree * y ) { //判斷平衡係數 
+		
+		
+		int bf = checkbf( y ) ;
+	
+		if( bf == 2 || bf == -2 ) 
+			checkrotate( y , bf ) ;
+		else if( bf == -1 || bf == 1 || bf == 0 ) {
+		
+					
+			if( y != root ) {
+				
+				checkheight( y -> parent ) ;
+			}
+		}
+	
+		
+}
+ 
+void tree :: inorder2( tree * x ) {
+	if( x != NULL  ) {
+		
+		inorder2( x ->left ) ;
+		cout << x -> element.graduates << endl ;
+		inorder2( x -> right ) ; 
+	}
+}
+void tree :: inorder( tree * x ) {
+	
+	if( x != NULL  ) {
+		
+		inorder( x ->right ) ;
+		findk( x ) ;
+		inorder( x -> left ) ; 
+	}
+	
+}
+
+void tree :: deleteall(){ //刪除資料 
+	delete root ;
+	root = NULL ;
+	
+}
+
+
+void tree :: findk( tree * x) {
+
+	list1.push_back( x -> element ) ;
+	
+	
+} 
+
+void tree:: findkm( int k ) {
+	int size ;
+	int i ;
+	int j ;
+	int index = 1 ;
+	while( k > 0 ) {
+
+		k = k - list1.at(i).key.size() ;
+		for( int j = 0 ; j < list1.at(i).key.size() ; j++ ) {
+			cout << index << ": [" ;
+			 
+			cout << list1.at(i).key.at(j).num << "]" << list1.at(i).key.at(j).schoolname << ", " << list1.at(i).key.at(j).departname ;
+			cout << ", " << list1.at(i).key.at(j).day << ", "<<  list1.at(i).key.at(j).level << ", " <<  list1.at(i).key.at(j).graduates << endl ; 
+			index++ ;
+		}	
+		 i++ ;
+		
+	}
+} 
+
+
+bool getAll( string name ) ;
+
+
+void buildlist1 ( Data m ) { //建立avl的資料 
+	bool no = false ;
+    for( int i = 0 ; i < list1.size() ; i++ ) {  
+    	if( m.graduates == list1.at(i).graduates ) { //相同graduates放一起 
+    		list1.at(i).key.push_back(m) ;
+    		no = true ;
+    		break ;
+		}
+	}	
+	
+	if( no == false ){ //加入新資料 
+		Avl x ;
+		x.key.push_back(m) ;
+		x.graduates = m.graduates ;
+		list1.push_back(x) ;
+	}
+		
+	
+}
+
+int main(){
+	int command ;
+    tree tree1 ;
+
+	while(true){
+		cout << endl << "**        Search tree utilities          **" ;
+    	cout << endl << "* 0. QUIT                                *" ;
+    	cout << endl << "* 1. Build 2-3tree                       *" ;
+    	cout << endl << "* 2. Build avl tree                      *" ;
+   		cout << endl << "* 3.                                     *" ; 
+    	cout << endl << "******************************************" ;
+    	cout << endl << "Input a choice(0, 1, 2, 3 ):" ;
+   		cin >> command ;
+   		
+   		if( command == 0 )
+   			break ;
+    			
+   		else if ( command == 1 ) {
+   		   	
+				
+		
+			
+		}
+		
+	
+		else if( command == 2 ) {
+			string name ;
+   			cout << "Input a file number : " ;
+			cin >> name ;
+			name = name + ".txt" ;
+	     
+	        
+	    
+			if( getAll( name ) ){ 
+		
+			
+				for( int i = 0 ; i < list.size() ; i++ ) { //建立avl資料 
+				
+					buildlist1( list.at(i) ) ;
+				
+				}
+			
+				for( int i = 0 ; i < list1.size() ; i++ ) { //插入資料 
+					if( i == 0 )
+						tree1.treeroot(list1.at(0)) ;
+					else
+						tree1.insert(list1.at(i)) ;
+				} 
+				tree1.inorder2(tree1.root) ;
+		
+			}
+			
+			
+		
+			cout << "Tree heights =" << tree1.height(tree1.root) << endl ; //印樹高 
+			cout << "Number of nodes = " << list1.size() << endl ; //印節點數 
+		
+			for( int i = 0 ; i < tree1. root -> element.key.size() ; i++ ) { //印根資料 
+				cout << i+1 << ":" << "["  ;  
+				cout << tree1. root -> element.key.at(i).num << "]" ;
+		
+				cout << tree1. root -> element.key.at(i).schoolname <<  "," << tree1. root -> element.key.at(i).departname << ","  ;
+				cout << tree1. root -> element.key.at(i).day << "," << tree1. root -> element.key.at(i).level << ","  ;
+				cout << tree1. root -> element.key.at(i).graduates << endl ;
+			
+			}
+			
+			
+			
+		
+		
+			tree1.deleteall() ; //刪除資料 
+			list.clear() ;
+			list1.clear() ;
+			
+			
+			
+			
+		}
+		else if ( command == 3 ) {
+			string name ;
+   			cout << "Input a file number : " ;
+			cin >> name ;
+			name = name + ".txt" ;
+	        int k ;
+	        cout << "請輸入k值(要停止請輸入-1)" << endl ; 
+	        cin >> k ;
+	    
+			if( getAll( name ) ){ 
+				for( int i = 0 ; i < list.size() ; i++ ) { //建立avl資料 
+				
+					buildlist1( list.at(i) ) ;
+				
+				}
+			
+				for( int i = 0 ; i < list1.size() ; i++ ) { //插入資料 
+					if( i == 0 )
+						tree1.treeroot(list1.at(0)) ;
+					else
+						tree1.insert(list1.at(i)) ;
+				} 
+				
+				list1.clear() ;
+				tree1.inorder( tree1.root) ;
+				
+				tree1.findkm( k ) ;
+				cin >> k ;
+				while( k != -1 ) {
+					tree1.inorder( tree1.root) ;
+				
+					tree1.findkm( k ) ;
+					cin >> k ;
+				}
+				
+				
+				tree1.deleteall() ; //刪除資料 
+				list.clear() ;
+				list1.clear() ;
+				
+			}
+		}
+		
+		
+	
+	
+	} 
+
+}
+
+bool  getAll( string name ){
+	int i, t, no ;
+    stringstream ss ;
+	string str ;
+    char ch = '\0';
+    FILE *infile = NULL ;
+	bool test = false ;
+	int index = 0 ;
+	name = "input" + name ;
+	infile = fopen(name.c_str(), "r");
+	if ( infile == NULL ) 
+		cout << name << " does not exist!\n" ; 
+	else {
+		while( ch != '\n'){
+			fscanf(infile,"%c",&ch) ;
+		}
+		
+		fscanf(infile,"%c",&ch) ;
+		while( ch != '\n'){
+			fscanf(infile,"%c",&ch) ;
+		}
+		fscanf(infile,"%c",&ch) ;
+		while( ch != '\n'){
+			fscanf(infile,"%c",&ch) ;
+		}
+		
+        i = 0 ;
+	    t = 0 ;  // 計算tab數 
+
+	    no = fscanf(infile,"%c",&ch) ;
+	    
+		while( no != -1 ){  // 讀得到東西 
+			while( ch != '\t'){
+				fscanf(infile,"%c",&ch) ;
+			}
+			fscanf(infile,"%c",&ch) ;
+			string num ;
+			string schoolname ;
+			string departname ;
+			string day ;
+			string level ;
+			Data data ;
+			while( t <= 6 ) {
+				if ( t == 0 ) {
+					
+					while ( ch != '\t') {
+						schoolname = schoolname + ch ;
+						fscanf(infile,"%c",&ch) ;
+						
+						
+					}
+					fscanf(infile,"%c",&ch) ;
+					data.schoolname = schoolname ;
+				
+					t++ ;
+						 
+						
+					
+					    
+				}
+				else if ( t == 2 ) {
+					while ( ch != '\t') {
+						departname = departname + ch ;
+						fscanf(infile,"%c",&ch) ;
+						
+						
+					}
+					fscanf(infile,"%c",&ch) ;
+					data.departname = departname ;
+				
+					t++ ;
+				}
+				else if ( t == 3 ) {
+					while ( ch != '\t') {
+						day = day + ch ;
+						fscanf(infile,"%c",&ch) ;
+						
+						
+					}
+					fscanf(infile,"%c",&ch) ;
+					data.day = day ;
+				
+					t++ ;
+				}
+				else if ( t == 4 ) {
+					while ( ch != '\t') {
+						level = level + ch ;
+						fscanf(infile,"%c",&ch) ;
+						
+						
+					}
+					fscanf(infile,"%c",&ch) ;
+					data.level = level ;
+			
+					t++ ;
+				}
+				else {
+					while ( ch != '\t') {
+					
+						fscanf(infile,"%c",&ch) ;
+						
+					}
+					fscanf(infile,"%c",&ch) ;
+					t++ ;
+				}
+				
+				 
+			}
+			
+			
+			while( ch != '\t'){
+				
+				num = num + ch ;
+				fscanf(infile,"%c",&ch) ;
+			}
+			 
+			ss << num ;
+			
+			ss >> data.graduates ;
+			ss.str("") ;
+		    ss.clear() ;
+			
+		    
+		    while( ch != '\n'&& no != -1 ) {
+		    	no = fscanf(infile,"%c",&ch) ;
+			}
+			
+			if( ch == '\n') {
+				no = fscanf(infile,"%c",&ch) ;
+			}
+		    	
+			
+		    
+			
+			index++ ;
+			
+			data.num = index ;
+			
+			list.push_back(data);
+			t = 0 ;
+		
+		}
+ 			
+ 			
+ 		//cout << "345" ;
+ 	 
+		test=true ;  // 成功讀檔 
+	
+ 	
+		 
+		 
+        
+		
+	}
+	
+	
+	return test ;
+} // getAll()
