@@ -10,7 +10,28 @@
 
 using namespace std;
  
+/*
+typedef struct slotT{  // 同一個學校名稱的所有資訊 
+	vector<int> rSet;
+	string key; // schoolName
+}slotType;
 
+typedef struct nT{ // 一個節點內含1至2個學校名稱 
+	slotType data[KEY_NUM]; // two keys
+	struct nT *link[PTR_NUM]; // three ptrs
+	struct nT *parent; // point to parent node
+}nodeType;
+
+typedef struct pointT{
+	nodeType *pnode; // pointer point to parent node
+	int pidx; // index of parent node
+}pointType;
+
+typedef struct bT{ //分裂時要往上帶的資訊 
+	slotType slot;
+	nodeType *link;
+}blockType;
+*/
 
 struct Data{
 	int graduates ; // 畢業生人數 
@@ -31,6 +52,227 @@ struct Avl{ //相同畢業生人數
 
 vector<Data> list ;
 vector<Avl> list1 ;
+
+/*
+class 23Tree{
+int treeHeight( nodeType *root ) {
+    if(root== NULL)
+    	return 0;
+    //return max( treeHeight( root -> leftPtr ), treeHeight( root -> rightPtr ) )+1; 
+	els if( treeHeight( root.link[0] > root.link[1] ) && treeHeight( root.link[0] > root.link[2] ) )  	
+		return treeHeight( root.link[0] ) + 1;
+	els if( treeHeight( root.link[2] > root.link[0] ) && treeHeight( root.link[2] > root.link[1] ) )  	
+		return treeHeight( root.link[2] ) + 1;
+	else if( treeHeight( root.link[1] > root.link[0] ) && treeHeight( root.link[1] > root.link[2] ) )  	
+		return treeHeight( root.link[1] ) + 1;
+} // treeHeight()	
+	
+void free23tree( nodeType *root ){
+		if( root != NULL ){
+		free23tree(root->link[0]);
+		for( int i = 0; i < KEY_NUM; i++ ){
+			if( !root->data[i].rSet.size() )
+				break;
+			free23tree( root->link[i+1] );
+		} // for
+	} // if
+} // free23tree()
+
+void insert23tree( int newRid, string newKey, nodeType *root, int &nodesNum ){//序號 學校名稱 樹根 
+	slotType newSlot;
+	newSlot.rSet.push_back(newRid);
+	newSlot.key=newKey;
+	if( root == NULL ){
+		root = createNode(NULL,NULL,NULL,newSlot);
+		nodesNum++;
+		
+	} // if
+	else{
+		stack<pointType> aPath; // stack to keep the search path
+		pointType curP; // last visited node at the top of stack
+		blockType blockUp; // a data block received from a split
+		searchPath(root, newKey, aPath);
+		if( !aPath.empty() ){
+			curP = aPath.top(); // 可能是樹葉節點也可能是找到相同學校名稱 
+			if( (curP.pnode->data[curP.pidx].rSet.size())&&
+			(!newKey.compare(curP.pnode->data[curP.pidx].key))) // 找到相同學校名稱 
+				curP.pnode -> data[curP.pidx].rSet.push_back(newRid); // 加入序號 
+			else if(!curP.pnode->data[KEY_NUM-1].rSet.size()) {// 沒找到相同學校名稱且有空位 
+				insertLeaf(newSlot, curP); // 將學校名稱放到正確位置 
+				nodesNum++;
+		    } // else if
+			else{ // 沒找到相同學校名稱且無空位 
+			    nodesNum ++;
+				splitLeaf( newSlot, curP, blockUp );
+				if( curP.pnode->parent == NULL )
+					root = createRoot( curP.pnode, blockUp.link, blockUp.slot);
+					 );
+				else
+				do{
+					aPath.pop();
+					curP = aPath.top();
+					if( !curP.pnode->data[KEY_NUM-1].rSet.size() ){
+						insertNonleaf(blockUp, curP); 
+						break;
+					} // end inner if
+					else{
+						splitNonleaf(curP,blockUp);
+						if( curP.pnode->parent == NULL ){
+							root = createRoot( curP.pnode, blockUp.link, blockUp.slot );
+							break;
+						} // end very inner if
+					} // end inner else
+				}while(true);
+			} // end inner else	
+		} // end outer if
+	} // end outer else
+	
+} // insert23tree()
+
+nodeType *createNode(nodeType *left,nodeType *right,nodeType *pNode, slotType newS){
+	nodeType *newNode = NULL;
+	try{ 
+		newNode = new nodeType;
+		newNode -> data[0].rSet = newS.rSet;// 新的學校
+		newNode -> data[1].rSet.claer(); //代表沒有放資料 
+		newNode -> data[0].key = newS.key;// 新的學校 
+		newNode -> data[1].key = ""; // 代表沒有放資料 
+		newNode -> parent = pNode;
+		newNode -> link[0] = left;
+		newNode -> link[1] = right;
+		newNode -> link[2] = NULL;
+	} // end try
+	catch( std::bad_alloc&b ){
+		std::cerr<<endl<<"bad_alloc caught:"<<ba.what()<<endl; 
+	} // end catch
+	return newNode;
+} // createNode()
+
+void searchPath(nodeType *root, string newKey, stack<pointType> aPath){
+	pointType oneP;
+	int pos;
+	while( cur != NULL ){
+		oneP.pnode = cur;
+		for( pos = 0; pos < KEY_NUM; pos ++ )
+			if( ( !cur->data[pos].rSet.size())||
+			((name.compare(cur->data[pos].key))<0 ))
+				break;
+			else if( !name.compare(cur->data[pos].key)){
+				oneP.pidx = pos;
+				aPath.push(oneP);
+				return;	
+			} // else if
+		oneP.pidx = pos;
+		aPath.push(oneP);
+		cur = cur -> link[pos];
+	} // while
+} // searchPath()
+
+nodeType *createRoot(nodeType *left, nodeType *right, blockType oneSlot){
+	nodeType *newRoot = createNode(left, right, NULL, oneSlot );
+	left -> parent = newRoot;
+	right -> parent = newRoot;
+	return newRoot;
+} // createRoot()
+
+void insertLeaf( slotType newS, pointType curP ){
+	for( int i = KEY_NUM-1; i >= aLeaf.pidx; i-- )
+		if( i>aLeaf.pidx ){
+			aLeaf.pnode->data[i].rSet = aLeaf.pnode->data[i-1].rSet;
+			aLeaf.pnode->data[i].key = aLeaf.pnode->data[i-1].key;	
+		} // if
+		else if( i == aLeaf.pidx ){
+			aLeaf.pnode->data[i].rSet = newS.rSet;
+			aLeaf.pnode->data[i].key = newS.key;
+		} // else if
+		else
+			break;
+} // insertLeaf()
+
+void splitLeaf( slotType newS, pointType aLeaf, blockType aBlock ){ 
+	slotType buf[PTR_NUM];
+	int idx = 0;
+	for( int i = 0; i< PTR_NUM; i++ ){
+		buf[i].rSet = (i==aLeaf.pidx) ? newS.rSet : aLeaf.pnode->data[idx].rSet;
+		buf[i].key = (i==aLeaf.pidx) ? newS.key : aLeaf.pnode->data[idx++].key;
+	} // for
+	aLeaf.pnode->data[0].rSet = buf[0].rSet;
+	aLeaf.pnode->data[0].key = buf[0].key;
+	for( int i = 1; i < key_Num; i ++ ){
+		aLeaf.pnode->data[i].rSet.clear();
+	} // for
+	aBlock.link = creatNode( NULL, NULL, aLeaf.pnode->parent,buf[2] );
+	aBlock.slot.rSet = buf[1].rSet;
+	aBlock.slot.key = buf[1].key;
+} // splitLeaf() 
+
+void insertNonleaf( blockType oneB, pointType goal ){ // 輸入blockUp,curP 
+	nodeType *ptr = goal.pnode->data[goal.pidx];
+		if( ptr.data[0].key > oneB.slot.key ){
+			if( ptr.link[1] != NULL ){
+				ptr.link[2] = ptr.link[1];
+			} // if
+			ptr.data[1].rSet = ptr.data[0].rSet;	
+			ptr.data[1].key = ptr.data[0].key;
+			ptr.data[0].key = oneB.slot.key;
+			ptr.data[0].rSet = oneB.slot.rSet;
+			ptr.link[1] = oneB.link;
+		} // if
+		else {
+			ptr.data[1].rSet = oneB.slot.rSet;	
+			ptr.data[1].key = oneB.slot.key;
+			ptr.link[2] = oneB.link;				
+		} // else 		
+} // insertNonleaf
+
+void splitNonleaf( pointType &goal, blockType &oneB ){
+	slotType buf[PTR_NUM];
+	nodeType *ptr[PTR_NUM+1];
+	//nodeType  curline = goal.pnode->data[goal.pidx];
+	int idx = 0;
+	for( int i = 0 ; i < PTR_NUM ; i++ ){
+		buf[i].rSet=(i==goal.pidx)? oneB.slot.rSet : goal.pnode->data[idx].rSet;
+		buf[i].key=(i==goal.pidx)? oneB.slot.key : goal.pnode->data[idx++].key;
+	} // for
+	
+	if( oneB.link->data[0].key.compare(goal.pnode->link[2]->data[0].key) ) { // 判斷split 節點是否在最右側 
+		for( int i = 0; i <PTR_NUM ; i++ ){
+			ptr[i] = goal.pnode->link[i];
+		} // for
+		ptr[3] = oneB.link;
+	}
+	else if( oneB.link->data[0].key.compare(goal.pnode->link[1]->data[0].key) < 0 ) {
+		ptr[1] = oneB.link;
+		ptr[0] = goal.pnode->link[0];
+		ptr[2] = goal.pnode->link[1];
+		ptr[3] = goal.pnode->link[2];	
+	}
+	else {
+		ptr[0] = goal.pnode->link[0];
+		ptr[0] = goal.pnode->link[1];
+		ptr[2] = oneB.link;
+		ptr[3] = goal.pnode->link[2];
+	}
+	
+	goal.pnode->data[0].rSet = buf[0].rSet;
+	goal.pnode->data[0].key = buf[0].key;
+	goal.pnode->link[0]=ptr[0];
+	ptr[0]->parent = goal.pnode->link[0];
+	goal.pnode->link[1] = ptr[1];
+	ptr[1] -> parent = goal.pnode->link[1];
+	goal.pnode->link[2] = NULL;
+	
+	for( int i = 1 ; i < KEY_NUM ; i ++ )
+		goal.pnode -> data[i].rSet.clear();
+	
+	oneB.link = createNode(ptr[2],ptr[3],goal.pnode->parent,buf[2]);
+	oneB.slot.key = buf[1].key;
+	oneB.slot.rSet = buf[1].rSet;
+} // splitNonleaf
+
+} // class23Tree
+
+*/
 
 class tree{
 	public :
@@ -356,10 +598,40 @@ int main(){
    			break ;
     			
    		else if ( command == 1 ) {
-   		   	
+   		/*   	
+   		    string name ;
+   			cout << "Input a file number : " ;
+			cin >> name ;
+			name = name + ".txt" ;
+	        int totallenth ;
+	    
+			if( getAll( name, totallenth ) ){ 
+			cout << "123" ;
+				for( int i = 0 ; i < totallenth ; i++ ) {
 				
-		
+				    cout << list.at(i).schoolname << " " << list.at(i).departname << " " << list.at(i).day  ;
+				    cout << " " << list.at(i).level << " " << list.at(i).num << endl ; 
+				} // for
+		    } // if	
+		    23Tree 23tree;
+		    nodeType *root;
+		    int treeHeight = 0;
+		    int nodeNums = 0;
+		    for( int i = 0 ; i < list.size() ; i ++ ){
+		    	23tree.insert23tree( list[i].num , list[i].schoolName, nodeType *root, nodesNum );
+			} // for
+			cout<<"Tree height = "<< treeHeight() << endl;
+			cout<<"Number of nodes = "<< nodesNum << endl;
+			for( int i = 0 ; i < KEY_NUM; i++ ){
+				for( int j = 0 ; j < sizeOf(root.data[i]); j++ ){
+					int num = list[root.data[i].rSet.at(j);
+					cout << num << " "<< list[i].schoolName << list[i].departName << list[i].day<<list[i].level <<list[i].graduates<<endl;
+				} // inner for
+			} // for
 			
+		    				
+		
+		*/	
 		}
 		
 	
