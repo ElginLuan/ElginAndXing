@@ -1,0 +1,505 @@
+// 10720101 阮彥吉吉 10720137 陳微心 請助教下載github版本 
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector> 
+#include <queue>
+#include <cstdlib>
+#include <iomanip>
+#include <cstring>
+#include <math.h>
+#include<stack>
+#include <algorithm>
+#include <stdlib.h>
+#include <sstream>
+
+using namespace std;
+
+#define MAX_LEN 10
+#define PAGE 25
+#define NONE -1 
+
+//---------------------------------------
+
+class DirectedGraph{
+	
+	public :
+		
+	typedef struct sp{ // student pair
+		char sid1[MAX_LEN]; // 1st sid : sender
+		char sid2[MAX_LEN]; // 2nd sid : reciever
+		float wgt; // pair weight
+	} studentPair;
+	
+	typedef struct sp2{ // student pair
+		string sid1; // 1st sid : sender
+		string sid2; // 2nd sid : reciever
+		float weight; // pair weight
+	} studentPair2;
+	
+	typedef struct aLN{ // node of adjacency list
+		string sid2; // reciever
+		float weight; // pair weight
+		struct aLN *next; // pointer to next node
+	} adjListNode;
+	
+	typedef struct aL{ // the element of the main adjList
+		string sid1; // sender
+		adjListNode *head; // pointer to the first node of a list
+		int inf ; // influence value 
+		bool isVisited;
+		int connectCount;
+	} adjList;
+	
+	typedef struct co{
+		string sid1 ;
+		int connectCount ;
+		vector<string> tempVector ;
+	} connectList ;
+	
+	
+	vector<studentPair2> stud ;
+	vector<adjList> adjL; // the adjacency lists
+	string fileNO; // a number to form a file
+	float wgtLB; // lower bound of weights
+	vector<connectList> twoDimensionVector; // store the data in mission 2
+	//vector<int> connectCountVector;
+
+	bool readF( string filename ); // get all records from a file
+	void insert();
+	void inAdjL( studentPair2 st, int index ) ; //插入主陣列 
+	void inList( studentPair2 st, int index ) ; //插入後面的鏈結串列 
+	void neverSend() ;
+	void saveF() ;
+	 
+	
+	int locate( string sid );
+	int BFS( string sid, vector<string> & tempVector);
+	int setAllIsVisitedToFalse();
+	void connectionCounts();
+	void printAdjL();
+	void insertIntoOneDVector( string sid, vector<string> & tempVector );
+	void saveCnt() ;
+	void clearGraph();
+	void sortVector();
+	void insertCnt( connectList st ) ;
+}; // class DirectedGraph
+// mission1
+bool DirectedGraph :: readF( string filename ) {
+	fileNO = filename ;
+	filename = "pairs"+ filename +".bin" ;
+	fstream binFile ;
+	studentPair oneSet ;
+	studentPair2 twoSet ;
+	int setNo = 0 ;
+    stringstream s1 ;
+    int sid1 ;
+    int sid2 ;
+	binFile.open(filename.c_str(),fstream::in | fstream::binary) ;
+	if(binFile.is_open()) {
+		binFile.seekg(0,binFile.end) ;
+		setNo = binFile.tellg()/sizeof(oneSet) ;
+		binFile.seekg(0,binFile.beg) ;
+		for(int i = 0 ; i < setNo ; i++ ) {
+			
+			binFile.read((char*)&oneSet,sizeof(oneSet)) ;
+			sid1 = atoi(oneSet.sid1 );
+			sid2 = atoi( oneSet.sid2 );
+			twoSet.weight = oneSet.wgt ;
+			s1 << sid1 ;
+			s1 >> twoSet.sid1 ;
+			s1.clear() ;
+			s1 << sid2 ;
+			s1 >> twoSet.sid2 ;
+			s1.clear() ;
+			stud.push_back(twoSet) ;
+			
+			
+			
+		} // end for
+		
+	} // end if
+	binFile.close() ;
+}
+
+void DirectedGraph :: insert() {
+	adjList send ;
+	int i, j ;
+	bool isSend = false ;
+	for( i = 0 ; i < stud.size() ; i++ ) {
+		
+		isSend = false ;
+		if( i == 0 ) {
+			isSend = true ;
+			inAdjL(stud.at(i), i ) ; // insert into adjL
+	
+		}
+		else {
+			for( j = 0 ; j < adjL.size() ; j++ ) { // run the whole adjL
+			//	cout << j << endl ;
+				if( stud.at(i).sid1 == adjL.at(j).sid1 ) {
+				
+					inList( stud.at(i), j ) ; // insert into list	
+					isSend = true ;
+					break ;
+					
+				}
+				
+				else if( stud.at(i).sid1 < adjL.at(j).sid1 ) {
+					isSend = true ;
+					inAdjL(stud.at(i), j ) ;
+					break ;
+				}
+								
+			}
+			
+			if( isSend == false ) {
+			
+				inAdjL(stud.at(i), j ) ;
+			}		
+		}		
+	}
+	
+	neverSend() ;
+
+}
+
+void DirectedGraph :: inAdjL( studentPair2 st, int index ) {
+	adjList send ;
+	
+	send.sid1 = st.sid1;
+	send.inf = 1 ;
+	adjListNode * node = new adjListNode ;
+	node -> sid2 = st.sid2 ;
+	node -> weight =  st.weight ;
+	node -> next = NULL ;
+	send.head = node ;
+	
+	if( index == adjL.size() ){
+		adjL.push_back(send) ;
+		//send.head =NULL; // elgin did this
+	} // if
+	else
+		adjL.insert( adjL.begin() + index, send ) ;
+		
+}
+
+void DirectedGraph :: inList( studentPair2 st, int index ) {
+	adjListNode * node = new adjListNode ;
+	node -> sid2 = st.sid2 ;
+	node -> weight =  st.weight ;
+	node -> next = NULL ;
+	adjListNode * cur = adjL.at(index).head ;
+	bool isback = false ;
+	
+	
+	if( node -> sid2 < adjL.at(index).head -> sid2 ) {
+		
+		node -> next = cur ;
+		adjL.at(index).head = node ;
+	}
+	else {
+	
+		while( cur != NULL ) {
+			if( cur -> next == NULL ) { 
+			
+				cur -> next = node ;
+				break ;
+			}
+			else if ( node -> sid2 < cur -> next -> sid2 ) {	
+					
+				node -> next = cur -> next ;
+				cur -> next = node ;
+				isback = true ;	
+				break ;			
+			}
+			
+			cur = cur -> next ;
+		}
+		
+		
+	}
+	
+	adjL.at(index).inf++ ;
+				
+}
+
+void DirectedGraph :: saveF() {
+	
+	
+	fstream file ;
+	int count ;
+	string filename ;
+    filename = "pairs" + fileNO + ".adj" ; //設定檔名 
+	file.open( filename.c_str() , ios::out ) ;//讓文件開啟為寫入狀態 
+	file << " <<< There are " << adjL.size() << " IDs in totals >>>" << endl ;
+	adjListNode * cur = NULL ;
+    for ( int i = 0 ; i < adjL.size() ; i++ ) {
+  
+			
+			file << "[ " << i+1 << "]" << adjL.at(i).sid1 << ":" << endl ;
+			cur = adjL.at(i).head ;
+			count = 1 ;
+			while( cur != NULL ) {
+				
+				file << "\t" << "(" << count << ") " << cur -> sid2 << ", " << cur -> weight ;
+				count++ ;
+				cur = cur -> next ;
+			}
+			
+			file << endl ;
+			
+	} // for
+	
+	file << "There are " << stud.size()  << " nodes in totals" << endl ; 
+	    
+    file.close() ;//關閉檔案 
+    
+    cout << "There are " << adjL.size() << " IDs in totals" << endl ;
+    cout << "There are " << stud.size()  << " nodes in totals" << endl ; 
+        
+
+	
+}
+
+void DirectedGraph :: saveCnt() {
+	
+	
+	fstream file ;
+	int count ;
+    fileNO = "pairs" + fileNO + ".cnt" ; //設定檔名 
+	file.open( fileNO.c_str() , ios::out ) ;//讓文件開啟為寫入狀態 
+	file << " <<< There are " << adjL.size() << " IDs in totals >>>" << endl ;
+	
+	for( int i = 0; i < twoDimensionVector.size(); i ++ ) {
+		file << "[ " << i+1 << "]" << twoDimensionVector.at(i).sid1 << "(" << twoDimensionVector.at(i).connectCount << ")" << endl ;
+		for( int j = 0; j < twoDimensionVector.at(i).tempVector.size(); j ++ )
+			file << "\t" << "(" << j+1 << ")" << twoDimensionVector.at(i).tempVector.at(j) << "\t" ;
+		
+		file<<endl << endl ; 
+	}
+	
+    file.close();//關閉檔案 
+    
+    cout << "There are " << twoDimensionVector.size() << " IDs in totals" << endl;
+    
+        
+
+	
+}
+
+void DirectedGraph :: clearGraph() {
+	stud.clear();
+	adjL.clear();
+	twoDimensionVector.clear();
+}
+
+void DirectedGraph :: neverSend() {
+	adjList send ;
+	bool isSend = false ;
+	
+	for( int i = 0 ; i < stud.size() ; i++ ) {
+		isSend = false ;
+		for( int j = 0 ; j < adjL.size() ; j++ ) {
+			if( stud.at(i).sid2 == adjL.at(j).sid1 ) {
+				isSend = true ;
+				break ;
+			}
+			else if( stud.at(i).sid2 < adjL.at(j).sid1 ) {
+				send.sid1 = stud.at(i).sid2 ;
+				send.inf = 0 ;
+				send.head = NULL ;
+				adjL.insert( adjL.begin() + j, send ) ;
+				isSend = true ;
+				break ;
+			}
+		}
+		
+		if( isSend == false ) {
+			send.sid1 = stud.at(i).sid2 ;
+			send.inf = 0 ;
+			send.head = NULL ;
+			adjL.push_back(send) ;
+		}
+	}
+	
+	
+}
+
+// mission2 
+void DirectedGraph :: printAdjL() {
+	for (int i = 0; i < adjL.size(); i ++ )
+		cout << adjL.at(i).sid1 << endl;	
+} // printAdjL()
+
+void DirectedGraph :: connectionCounts() {
+	for( int i = 0; i <adjL.size() ; i ++ ) {
+		//vector<string> tempVector;
+		connectList temp ;
+		temp.sid1 = adjL.at(i).sid1 ;
+		temp.connectCount = BFS( adjL.at(i).sid1, temp.tempVector );
+		insertCnt( temp ) ;
+	
+	} // for
+} // connectionCounts 
+
+void DirectedGraph :: insertCnt( connectList st) {
+	if( twoDimensionVector.empty() ) // vector is empty
+		twoDimensionVector.push_back(st);
+	else { // find a suitatable place to put sid
+		int run = 0;
+		while( run < twoDimensionVector.size() ) {
+			if( run == twoDimensionVector.size() -1 ) {
+				if( st.connectCount < twoDimensionVector.at(run).connectCount ) {
+					twoDimensionVector.push_back(st);
+					break ;
+				}
+				else if( st.connectCount == twoDimensionVector.at(run).connectCount ) {
+					if( st.sid1 < twoDimensionVector.at(run).sid1 ) {
+						twoDimensionVector.insert( twoDimensionVector.begin() + run, st );
+						break ;
+					}
+					else {
+						twoDimensionVector.push_back(st);
+						break ;
+					}
+						
+				}
+				else {
+					twoDimensionVector.insert( twoDimensionVector.begin() + run, st );
+					break ;
+				}
+					
+			}
+		    else if( st.connectCount < twoDimensionVector.at(run).connectCount ) 
+		    	run ++;
+		    else{ // found the place
+		    	if( st.connectCount == twoDimensionVector.at(run).connectCount ) {
+		    		if( st.sid1 < twoDimensionVector.at(run).sid1 ) {
+						twoDimensionVector.insert( twoDimensionVector.begin() + run, st );
+						break ;
+					}
+					else
+						run++ ;
+				}
+				else {
+					twoDimensionVector.insert( twoDimensionVector.begin() + run, st );
+		    		break;
+				}
+		    	
+			} // else	 
+	    } // while
+	} // else
+}
+
+int DirectedGraph :: locate( string sid ){ // locate adjList list
+	for(int i = 0 ; i < adjL.size(); i ++ ){
+		if( adjL[i].sid1 == sid ){
+			return i;
+		} // if	    
+	} // for
+} // locate() 
+
+int DirectedGraph :: BFS( string sid, vector<string> & tempVector ){
+	setAllIsVisitedToFalse();
+	int connectCount = 0;
+    queue <string> q;
+    q.push(sid);
+    adjL[locate(sid)].isVisited = true; // set the adjList isVisited
+    
+    while ( q.size() != 0 ) {
+        adjListNode *walk = adjL[locate(sid)].head; // point to the first node of a list
+   	    while ( walk != NULL ) { // see all the nodes of adjList
+   	    	if ( !adjL[locate(walk->sid2)].isVisited ){
+   	    		q.push(walk->sid2);
+   	    		connectCount ++;
+   	    		adjL[locate(walk->sid2)].isVisited = true;
+   	    		insertIntoOneDVector( walk->sid2, tempVector );
+   	    	} // if
+			walk = walk->next; 
+        } // while
+        q.pop();
+        if ( !q.empty() )
+        	sid = q.front();
+    } // while
+    
+    return connectCount;
+} // BFS()
+
+int DirectedGraph :: setAllIsVisitedToFalse() {
+	for( int i = 0; i < adjL.size(); i ++ )
+		adjL[i].isVisited = false;
+} // setIsVisitedToFalse()
+
+void DirectedGraph :: insertIntoOneDVector( string sid, vector<string> & tempVector ){
+	
+	if( tempVector.empty() ) // vector is empty
+		tempVector.push_back(sid);
+	else { // find a suitatable place to put sid
+		int run = 0;
+		while( run < tempVector.size() ) {
+			if( run == tempVector.size() -1 ) {
+				if( sid > tempVector.at(run)) {
+					tempVector.push_back(sid);
+				}
+				else
+					tempVector.insert( tempVector.begin() + run, sid );
+				break ;
+			}
+		    else if( sid > tempVector.at(run) ) 
+		    	run ++;
+		    else{ // found the place
+		    	tempVector.insert( tempVector.begin() + run, sid );
+		    	break;
+			} // else	 
+	    } // while
+	} // else
+	
+	
+} // insertIntoOneDVector()
+int main() {
+	int command ;
+	DirectedGraph graph;
+	bool missionOneDone = false ;
+	while(true){
+		
+		cout << endl << "**      Graph data manipulation         **" ;
+    	cout << endl << "* 0.  QUIT                               *" ;
+    	cout << endl << "* 1.  Create adjacency list              *" ;
+    	cout << endl << "* 2.  Compute connection counts          *" ;
+    	cout << endl << "******************************************" ;
+    	cout << endl << "Input a choice(0, 1, 2 ):" ;
+   		cin >> command ;
+   		
+		string fileName;
+   		if( command == 0 )
+   			break ;    			
+   		else if ( command == 1 ) {
+   			if( missionOneDone  )
+   				graph.clearGraph();
+   			cout<<"Input a file number:";
+        	cin >> fileName;			
+			graph.readF(fileName);
+			graph.insert();
+			graph.saveF();
+			missionOneDone = true ;
+	    } // else if	    
+		else if (command == 2 ) {
+			if( missionOneDone == false ) {
+				cout << "There is no graph and choose 1 first." << endl ;
+			}
+			else {
+				graph.connectionCounts();
+				graph.saveCnt();
+				graph.clearGraph() ;
+			}			
+	    } // else if							    
+	    else
+	        cout<<"command does not exist";
+	        
+	} // while
+	return 0;
+} // end main
+
+
+
